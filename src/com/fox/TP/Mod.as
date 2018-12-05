@@ -1,8 +1,7 @@
-import GUI.RegionTeleport.PlayfieldEntry;
 import com.GameInterface.DistributedValue;
 import com.GameInterface.Lore;
 import com.GameInterface.LoreNode;
-import com.GameInterface.Utils;
+import com.Utils.Archive;
 import mx.utils.Delegate;
 /**
  * ...
@@ -10,56 +9,217 @@ import mx.utils.Delegate;
  */
 class com.fox.TP.Mod {
 	private var RegionDval:DistributedValue;
+	private var FavArray:Array;
+	private var HideArray:Array;
+	private var favButton;
+	private var expandButton;
+	private var active:LoreNode;
+	private var favNode:LoreNode;
+	
 	public static function main(swfRoot:MovieClip){
 		var s_app = new Mod();
 		swfRoot.onLoad = function(){s_app.Load()};
 		swfRoot.onUnload = function(){s_app.Unload()};
+		swfRoot.OnModuleActivated = function(config){s_app.Activate(config)};
+		swfRoot.OnModuleDeactivated = function(){return s_app.Deactivate()};
 	}
-	public function Mod() { }
-	public function Load() {
+	public function Mod() {
 		RegionDval = DistributedValue.Create("regionTeleport_window");
-		RegionDval.SignalChanged.Connect(Reorder, this);
-		Reorder(RegionDval);
+	}
+	public function Load() {
+		RegionDval.SignalChanged.Connect(statusChanged, this);
 	}
 	public function Unload() {
-		RegionDval.SignalChanged.Disconnect(Reorder, this);
+		RegionDval.SignalChanged.Disconnect(statusChanged, this);
 	}
-	private function Createlist(headerNode:LoreNode){
-		var scrollList:MovieClip = _root.regionteleport.m_Window.m_Content.m_ScrollPanel;
-		scrollList.m_PlayfieldEntries = new Array();
-		scrollList.m_ListContent = scrollList.createEmptyMovieClip("m_ListContent", scrollList.getNextHighestDepth());
-		var node = headerNode.m_Children[headerNode.m_Children.length - 1];
-		var playfieldEntry:PlayfieldEntry = PlayfieldEntry(scrollList.m_ListContent.attachMovie("PlayfieldEntry", "PlayfieldEntry_" + node.m_Id, scrollList.m_ListContent.getNextHighestDepth()));
-		playfieldEntry.SetData(node, 0);
-		playfieldEntry.SignalEntrySizeChanged.Connect(scrollList.LayoutEntries, scrollList);
-		playfieldEntry.SignalEntryFocused.Connect(scrollList.SlotEntryFocused, scrollList);
-		playfieldEntry.SignalEntryActivated.Connect(scrollList.SlotEntryActivated, scrollList);
-		scrollList.m_PlayfieldEntries.push(playfieldEntry);
-		for (var i:Number = 0; i < headerNode.m_Children.length-1; i++)
-		{
-			if (Utils.GetGameTweak("HideTeleport_" + headerNode.m_Children[i].m_Id) == 0)
-			{
-				playfieldEntry = PlayfieldEntry(scrollList.m_ListContent.attachMovie("PlayfieldEntry", "PlayfieldEntry_" + headerNode.m_Children[i].m_Id, scrollList.m_ListContent.getNextHighestDepth()));
-				playfieldEntry.SetData(headerNode.m_Children[i], 0);
-				playfieldEntry.SignalEntrySizeChanged.Connect(scrollList.LayoutEntries, scrollList);
-				playfieldEntry.SignalEntryFocused.Connect(scrollList.SlotEntryFocused, scrollList);
-				playfieldEntry.SignalEntryActivated.Connect(scrollList.SlotEntryActivated, scrollList);
-				scrollList.m_PlayfieldEntries.push(playfieldEntry);
+	public function Activate(config:Archive) {
+		FavArray = config.FindEntryArray("Favorite");
+		if (!FavArray) FavArray = new Array();
+		HideArray = config.FindEntryArray("Hide");
+		if (!HideArray) HideArray = new Array();
+		statusChanged(RegionDval);
+	}
+	public function Deactivate() {
+		var config:Archive = new Archive();
+		for (var i:Number = 0; i < FavArray.length; i++){
+			config.AddEntry("Favorite",FavArray[i]);
+		}
+		for (var i:Number = 0; i < HideArray.length; i++){
+			config.AddEntry("Hide",HideArray[i]);
+		}
+		return config
+	}
+	//Adds or deleted a favorite
+	private function Favorite(){
+		var found;
+		for (var i in FavArray){
+			if (FavArray[i] == active.m_Id){
+				FavArray.splice(Number(i), 1);
+				found = true;
+				favButton.label = "Favorite";
+				break
 			}
 		}
-		scrollList.CreateScrollBar();
-		for (var i:Number = 0; i < scrollList.m_PlayfieldEntries.length; i++){
-			scrollList.m_PlayfieldEntries[i].Expand();
+		if (!found){
+			FavArray.push(active.m_Id);
+			favButton.label = "Unfavorite";
+		}
+		reDraw();
+		//Set selected entry
+		_root.regionteleport.m_Window.m_Content.m_ScrollPanel["SlotEntryFocused"](active);
+		//Expand zone that got added after redraw
+		for (var i in _root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"]){
+			if (active.m_Parent.m_Id == _root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"][i].m_Id){
+				_root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"][i].Expand();
+				break
+			}
 		}
 	}
-	private function Reorder(dv:DistributedValue){
+	private function Hide(){
+		var found;
+		for (var i in HideArray){
+			if (HideArray[i] == active.m_Parent.m_Id){
+				HideArray.splice(Number(i), 1);
+				found = true;
+				expandButton.label = "Hide";
+				break
+			}
+		}
+		if (!found){
+			HideArray.push(active.m_Parent.m_Id);
+			expandButton.label = "Show";
+			for(var i in _root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"]){
+				if (active.m_Parent.m_Id == _root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"][i].m_Id){
+					_root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"][i].Contract();
+					break
+				}
+			}
+		}
+		//SetExpand();
+	}
+	// creates copy of a lorenode
+	private function CopyNode(org:LoreNode){
+		var newnode = new LoreNode();
+		for (var i in org){
+			newnode[i] = org[i];
+		}
+		return newnode
+	}
+	//Finds lorenode with specified id from lorenode children
+	private function FindAndCopy(org:LoreNode, id:Number){
+		for (var zone in org.m_Children){
+			for (var loc in org.m_Children[zone].m_Children){
+				if (org.m_Children[zone].m_Children[loc].m_Id == id){
+					return CopyNode(org.m_Children[zone].m_Children[loc]);
+				}
+			}
+		}
+	}
+	// finds original tree, removes favourites and readds it
+	private function CreateFakeTree(){
+		var orgNode:LoreNode =  CopyNode(Lore.GetTeleportTree());
+		// for some reason fav node stays in the original teleport tree (when it is next time retrieved),even if i CopyNode() it
+		// have to manually remove it or they keep piling up
+		for (var i in orgNode.m_Children){
+			if (orgNode.m_Children[i].m_Id == 99999){
+				orgNode.m_Children.splice(Number(i), 1);
+			}
+		}
+		if(FavArray.length>0){
+			favNode = CopyNode(orgNode.m_Children[0]);
+			favNode.m_Children = new Array();
+			favNode.m_Id = 99999;
+			favNode.m_Name = "Favorites";
+			for (var i:Number = 0; i < FavArray.length; i++){
+				var copy:LoreNode = FindAndCopy(orgNode, FavArray[i])
+				copy.m_Parent = favNode;
+				favNode.m_Children.push(copy);
+			}
+			orgNode.m_Children.unshift(favNode);
+		}
+		return orgNode
+	}
+	/* 
+	* Entry selected
+	* Sets button texts and visibility
+	* Stores selected node for button use
+	*/ 
+	private function SlotEntryFocused(lorenode:LoreNode){
+		active = lorenode;
+		favButton._visible = true;
+		expandButton._visible = true;
+		var found;
+		for (var i in FavArray){
+			if (FavArray[i] == active.m_Id){
+				favButton.label = "Unfavorite";
+				found = true;
+				break
+			}
+		}
+		if (!found){
+			favButton.label = "Favorite";
+		}
+		found = undefined;
+		for (var i in HideArray){
+			if (HideArray[i] == active.m_Parent.m_Id){
+				expandButton.label = "Show";
+				found = true;
+				break
+			}
+		}
+		if (!found){
+			expandButton.label = "Hide";
+		}
+	}
+	private function reDraw(){
+		var node:LoreNode = CreateFakeTree();
+		_root.regionteleport.m_Window.m_Content.m_ScrollPanel.SetData(node);
+		_root.regionteleport.m_Window.m_Content.m_ScrollPanel.SignalEntryFocused.Disconnect(SlotEntryFocused, this);
+		_root.regionteleport.m_Window.m_Content.m_ScrollPanel.SignalEntryFocused.Connect(SlotEntryFocused, this);
+		SetExpand(node);
+	}
+	// m_ScrollPanel.SetData Expands all zones
+	// This function contracts users hidden zones
+	private function SetExpand(){
+		for (var i in _root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"]){
+			for (var y in HideArray){
+				if (HideArray[y] == _root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"][i].m_Id){
+					_root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"][i].Contract();
+					break
+				}
+			}
+		}
+	}
+	private function statusChanged(dv:DistributedValue){
 		if (dv.GetValue()){
-			var scrollList:MovieClip = _root.regionteleport.m_Window.m_Content.m_ScrollPanel;
-			if (!scrollList){
-				setTimeout(Delegate.create(this, Reorder), 100, dv);
+			var ScrollPanel:MovieClip = _root.regionteleport.m_Window.m_Content.m_ScrollPanel;
+			if (!ScrollPanel ){
+				setTimeout(Delegate.create(this, statusChanged), 100, dv);
 			}else{
-				scrollList["CreateContent"] = Delegate.create(this, Createlist);
-				scrollList["SetData"](Lore.GetTeleportTree());
+				var content:MovieClip = _root.regionteleport.m_Window.m_Content;
+				if (!favButton){
+					favButton = content.attachMovie("ChromeButtonWhite", "m_Favorite", content.getNextHighestDepth(),
+						{_y:content.m_TeleportButton._y+2, _x:content.m_TeleportButton._x - content.m_TeleportButton._width}
+					);
+					favButton.disableFocus = true;
+					favButton.label = "Favorite";;
+					favButton._width = 70;
+					favButton._height = 20;
+					favButton.addEventListener("click", this, "Favorite");
+					favButton._visible = false;
+				}
+				if (!expandButton){
+					expandButton = content.attachMovie("ChromeButtonWhite", "m_Expand", content.getNextHighestDepth(),
+						{_y:content.m_TeleportButton._y+2, _x:content.m_TeleportButton._x + content.m_TeleportButton._width*2-70}
+					);
+					expandButton.disableFocus = true;
+					expandButton.label = "Hide";
+					expandButton._width = 70;
+					expandButton._height = 20;
+					expandButton.addEventListener("click", this, "Hide");
+					expandButton._visible = false;
+				}
+				reDraw();
 			}
 		}
 	}

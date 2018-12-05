@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?> 
 <Root>
 	<Value name="TP" value="true" />
+	<Archive name="TP_Cfg" />
 </Root>

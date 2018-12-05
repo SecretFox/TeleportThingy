@@ -2,10 +2,11 @@
 <Root>
   <Module  name = "TP"
     movie       = "TP\TP.swf"
-    flags       = ""
+    flags       = "GMF_CFG_STORE_USER_CONFIG"
     depth_layer = "Top"
     sub_depth   = "2"
     variable    = "TP"
     criteria    = "TP &amp;&amp; (guimode &amp; (GUIMODEFLAGS_INPLAY | GUIMODEFLAGS_ENABLEALLGUI))"
+	config_name = "TP_Cfg"
   />
 </Root>
