@@ -18,26 +18,49 @@ class com.fox.TP.Mod {
 	
 	public static function main(swfRoot:MovieClip){
 		var s_app = new Mod();
-		swfRoot.onLoad = function(){s_app.Load()};
-		swfRoot.onUnload = function(){s_app.Unload()};
 		swfRoot.OnModuleActivated = function(config){s_app.Activate(config)};
 		swfRoot.OnModuleDeactivated = function(){return s_app.Deactivate()};
 	}
 	public function Mod() {
-		RegionDval = DistributedValue.Create("regionTeleport_window");
-	}
-	public function Load() {
-		RegionDval.SignalChanged.Connect(statusChanged, this);
-	}
-	public function Unload() {
-		RegionDval.SignalChanged.Disconnect(statusChanged, this);
 	}
 	public function Activate(config:Archive) {
 		FavArray = config.FindEntryArray("Favorite");
 		if (!FavArray) FavArray = new Array();
 		HideArray = config.FindEntryArray("Hide");
 		if (!HideArray) HideArray = new Array();
-		statusChanged(RegionDval);
+		DrawMenu();
+	}
+	private function DrawMenu()
+	{
+		var ScrollPanel:MovieClip = _root.regionteleport.m_Window.m_Content.m_ScrollPanel;
+		if (!ScrollPanel ){
+			setTimeout(Delegate.create(this, DrawMenu), 100);
+		}else{
+			var content:MovieClip = _root.regionteleport.m_Window.m_Content;
+			if (!favButton){
+				favButton = content.attachMovie("ChromeButtonWhite", "m_Favorite", content.getNextHighestDepth(),
+					{_y:content.m_TeleportButton._y+2, _x:content.m_TeleportButton._x - content.m_TeleportButton._width}
+				);
+				favButton.disableFocus = true;
+				favButton.label = "Favorite";;
+				favButton._width = 70;
+				favButton._height = 20;
+				favButton.addEventListener("click", this, "Favorite");
+				favButton._visible = false;
+			}
+			if (!expandButton){
+				expandButton = content.attachMovie("ChromeButtonWhite", "m_Expand", content.getNextHighestDepth(),
+					{_y:content.m_TeleportButton._y+2, _x:content.m_TeleportButton._x + content.m_TeleportButton._width*2-70}
+				);
+				expandButton.disableFocus = true;
+				expandButton.label = "Hide";
+				expandButton._width = 70;
+				expandButton._height = 20;
+				expandButton.addEventListener("click", this, "Hide");
+				expandButton._visible = false;
+			}
+			reDraw();
+		}
 	}
 	public function Deactivate() {
 		var config:Archive = new Archive();
@@ -81,13 +104,13 @@ class com.fox.TP.Mod {
 			if (HideArray[i] == active.m_Parent.m_Id){
 				HideArray.splice(Number(i), 1);
 				found = true;
-				expandButton.label = "Hide";
+				expandButton.label = "Collapse";
 				break
 			}
 		}
 		if (!found){
 			HideArray.push(active.m_Parent.m_Id);
-			expandButton.label = "Show";
+			expandButton.label = "Expand";
 			for(var i in _root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"]){
 				if (active.m_Parent.m_Id == _root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"][i].m_Id){
 					_root.regionteleport.m_Window.m_Content.m_ScrollPanel["m_PlayfieldEntries"][i].Contract();
@@ -162,13 +185,13 @@ class com.fox.TP.Mod {
 		found = undefined;
 		for (var i in HideArray){
 			if (HideArray[i] == active.m_Parent.m_Id){
-				expandButton.label = "Show";
+				expandButton.label = "Expand";
 				found = true;
 				break
 			}
 		}
 		if (!found){
-			expandButton.label = "Hide";
+			expandButton.label = "Collapse";
 		}
 	}
 	private function reDraw(){
@@ -190,38 +213,4 @@ class com.fox.TP.Mod {
 			}
 		}
 	}
-	private function statusChanged(dv:DistributedValue){
-		if (dv.GetValue()){
-			var ScrollPanel:MovieClip = _root.regionteleport.m_Window.m_Content.m_ScrollPanel;
-			if (!ScrollPanel ){
-				setTimeout(Delegate.create(this, statusChanged), 100, dv);
-			}else{
-				var content:MovieClip = _root.regionteleport.m_Window.m_Content;
-				if (!favButton){
-					favButton = content.attachMovie("ChromeButtonWhite", "m_Favorite", content.getNextHighestDepth(),
-						{_y:content.m_TeleportButton._y+2, _x:content.m_TeleportButton._x - content.m_TeleportButton._width}
-					);
-					favButton.disableFocus = true;
-					favButton.label = "Favorite";;
-					favButton._width = 70;
-					favButton._height = 20;
-					favButton.addEventListener("click", this, "Favorite");
-					favButton._visible = false;
-				}
-				if (!expandButton){
-					expandButton = content.attachMovie("ChromeButtonWhite", "m_Expand", content.getNextHighestDepth(),
-						{_y:content.m_TeleportButton._y+2, _x:content.m_TeleportButton._x + content.m_TeleportButton._width*2-70}
-					);
-					expandButton.disableFocus = true;
-					expandButton.label = "Hide";
-					expandButton._width = 70;
-					expandButton._height = 20;
-					expandButton.addEventListener("click", this, "Hide");
-					expandButton._visible = false;
-				}
-				reDraw();
-			}
-		}
-	}
-	
 }

@@ -6,7 +6,7 @@
     depth_layer = "Top"
     sub_depth   = "2"
     variable    = "TP"
-    criteria    = "TP &amp;&amp; (guimode &amp; (GUIMODEFLAGS_INPLAY | GUIMODEFLAGS_ENABLEALLGUI))"
+    criteria    = "TP &amp;&amp; regionTeleport_window &amp;&amp; (guimode &amp; (GUIMODEFLAGS_INPLAY | GUIMODEFLAGS_ENABLEALLGUI))"
 	config_name = "TP_Cfg"
   />
 </Root>

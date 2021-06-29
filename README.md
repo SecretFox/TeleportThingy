@@ -1,5 +1,5 @@
 # TP
-Add Favorite(/Unfavorite) and Hide(/Show) buttons to region teleport window.  
+Adds Favorite(/Unfavorite) and Expand(/Collapse) buttons to region teleport window.  
 Favorite will move the teleport entry to "Favorites" category at the top.  
-Hide will set the selected zone to not expand when opening the teleport window.  
+Hide/Collapse will let you decide which teleport regions are expanded when opening the window  
 [![example](example.png "example")](https://raw.githubusercontent.com/SecretFox/TeleportThingy/master/example.png)
